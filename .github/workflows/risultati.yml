@@ -1,0 +1,52 @@
+name: Risultati e pubblicazione
+on:
+  workflow_dispatch:
+    inputs:
+      pubblica:
+        description: Pubblica il sito su GitHub Pages
+        type: boolean
+        default: false
+  schedule:
+    - cron: '23 7,13,20 * * *'
+
+concurrency:
+  group: dashboard-risultati
+  cancel-in-progress: false
+
+jobs:
+  risultati:
+    if: github.ref_name == github.event.repository.default_branch
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - run: node aggiorna-risultati.mjs
+      - name: Conserva i risultati validi
+        if: (github.event_name == 'schedule' && vars.PUBBLICA_DASHBOARD == 'true') || inputs.pubblica
+        run: |
+          git add risultati.json
+          if git diff --cached --quiet; then exit 0; fi
+          git -c user.name=github-actions -c user.email=41898282+github-actions[bot]@users.noreply.github.com commit -m "Aggiorna risultati basket"
+          git push
+      - name: Prepara il sito
+        if: (github.event_name == 'schedule' && vars.PUBBLICA_DASHBOARD == 'true') || inputs.pubblica
+        run: |
+          mkdir site
+          cp Dashboard_Atletico_San_Lorenzo_2026-27.html site/index.html
+          cp risultati.json site/
+      - uses: actions/upload-pages-artifact@v3
+        if: (github.event_name == 'schedule' && vars.PUBBLICA_DASHBOARD == 'true') || inputs.pubblica
+        with:
+          path: site
+  pubblicazione:
+    if: (github.event_name == 'schedule' && vars.PUBBLICA_DASHBOARD == 'true') || inputs.pubblica
+    needs: risultati
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment: github-pages
+    steps:
+      - uses: actions/deploy-pages@v4
+
