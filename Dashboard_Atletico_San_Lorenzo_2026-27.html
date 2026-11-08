@@ -121,6 +121,7 @@
         </section>
 
         <section class="view" id="view-calendario">
+          <section class="panel" id="teamGroupStanding" style="margin-bottom:22px" hidden></section>
           <div class="panel panel-wide"><div class="panel-heading"><div><span class="section-kicker">TUTTE LE PARTITE</span><h3>Calendario &amp; risultati</h3></div><div class="inline-actions"><button class="button button-outline" id="downloadCSV">↓ Esporta CSV</button><span id="calendarCount" class="panel-small-count"></span></div></div>
             <div class="tab-group" id="calendarTabs"><button class="tab-btn active" data-tab="tutte">Tutte</button><button class="tab-btn" data-tab="prossime">Future</button><button class="tab-btn" data-tab="risultati">Con risultato</button><button class="tab-btn" data-tab="senza-risultato">Da aggiornare</button></div>
             <div class="table-scroll"><table class="fixture-table"><thead><tr><th>DATA / ORA</th><th>COMPETIZIONE</th><th>PARTITA</th><th>LUOGO</th><th>RISULTATO</th><th></th></tr></thead><tbody id="calendarBody"></tbody></table></div>
@@ -212,7 +213,7 @@ function render(){const games=getFiltered();const available=BASE.squadre.filter(
 $('#sidebar-count').textContent=allGames().length+' gare';
 $('#metricTeams').textContent=available.length;$('#metricFixtures').textContent=games.length;$('#metricResults').textContent=games.filter(hasScore).length;$('#metricResultsDesc').textContent=games.filter(hasScore).length?'Risultati registrati nel browser':'In attesa dei primi punteggi';
 const today=new Date(isoToday()+'T00:00:00');const plus7=new Date(today.getTime()+7*86400000);const date7=[plus7.getFullYear(),String(plus7.getMonth()+1).padStart(2,'0'),String(plus7.getDate()).padStart(2,'0')].join('-');$('#metricWeek').textContent=games.filter(g=>g.data>=isoToday()&&g.data<date7&&!hasScore(g)).length;
-renderTicker();renderUpcoming(games);renderResults(games);renderPerformance(games);renderCalendar(games);renderTeams();renderCoverage();}
+renderTicker();renderUpcoming(games);renderResults(games);renderPerformance(games);renderCalendar(games);renderGroupStanding();renderTeams();renderCoverage();}
 function renderTicker(){
   const results=lastResults(allGames()).slice(0,8);
   const items=results.map(g=>`<span>${escapeHTML(g.categoria)} · ${escapeHTML(g.casa)} <strong>${escapeHTML(displayScore(g))}</strong> ${escapeHTML(g.ospite)}</span>`).join('');
@@ -236,6 +237,22 @@ $('#calendarBody').innerHTML=pageItems.length?pageItems.map(g=>`<tr><td>${escape
 $('#paginationLabel').textContent=count?`Mostrate ${((page-1)*PAGE_SIZE)+1}–${Math.min(page*PAGE_SIZE,count)} su ${count}`:'Nessuna gara';$('#pageNumber').textContent=`${page} / ${pages}`;$('#prevPage').disabled=page<=1;$('#nextPage').disabled=page>=pages;$$('.tab-btn').forEach(b=>b.classList.toggle('active',b.dataset.tab===calendarTab));}
 
 let teamStandings={...(BASE.classifiche||{})};try{teamStandings={...teamStandings,...JSON.parse(localStorage.getItem('atletico-standings-v1')||'{}')}}catch(e){}
+function renderGroupStanding(){
+  const panel = $('#teamGroupStanding');
+  const ranking = BASE.classificheGironi?.[currentTeam];
+  panel.hidden = !ranking?.squadre?.length;
+  if (panel.hidden) {
+    panel.replaceChildren();
+    return;
+  }
+  const rows = ranking.squadre.map(row => {
+    const name = escapeHTML(row.squadra);
+    const label = isASL(row.squadra) ? `<strong>${name}</strong>` : name;
+    return `<tr><th scope="row">${label}</th><td>${escapeHTML(row.posizione)}</td><td>${escapeHTML(row.punti ?? '—')}</td></tr>`;
+  }).join('');
+  panel.innerHTML = `<div class="panel-heading"><div><span class="section-kicker">${escapeHTML(matchTeam(currentTeam).nome)}</span><h3>Classifica del girone</h3></div><span class="quiet-text">${escapeHTML(datestr(ranking.dataAcquisizione))} · <a href="${escapeHTML(ranking.fonteUrl)}" target="_blank" rel="noopener noreferrer">${escapeHTML(ranking.fonte)}</a></span></div>
+    <div class="stats-table-wrap"><table class="stats-team-table" aria-label="Classifica del girone"><thead><tr><th scope="col">Squadra</th><th scope="col">Pos.</th><th scope="col">Punti</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+}
 function teamStandingHTML(t){if(t.daIntegrare)return '';const r=teamStandings[t.id];return '<div class="standing-box"><span class="tiny-uppercase">'+escapeHTML(r?.fase||'REGULAR SEASON')+'</span><div><strong>'+(r?.posizione?escapeHTML(r.posizione)+'°':'—')+'</strong> in classifica · '+(r?.punti!==undefined?escapeHTML(r.punti)+' punti':'Punti da aggiornare')+'</div><span class="quiet-text">'+(r?escapeHTML(r.data)+' · '+escapeHTML(r.fonte):'Classifica da aggiornare')+'</span></div>';}
 
 function renderTeams(){const teams=BASE.squadre.filter(t=>(!currentSport||t.disciplina===currentSport)&&(!currentTeam||t.id===currentTeam)&&(!searchText||normalize(t.nome+' '+t.disciplina).includes(normalize(searchText))));$('#teamsGrid').innerHTML=teams.map(t=>{const g=allGames().filter(x=>x.squadra===t.id);const s=stats(g);const future=nextGames(g)[0];return `<article class="team-card ${t.daIntegrare?'team-card-warning':''}" role="button" tabindex="0" data-team="${escapeHTML(t.id)}"><div class="team-top"><div class="sport-icon">${colorSport(t.disciplina)}</div>${t.daIntegrare?'<span class="missing-badge">DA INTEGRARE</span>':`<span class="pill neutral">${g.length} GARE</span>`}</div><div class="team-league">${escapeHTML(t.disciplina)}</div><h4>${escapeHTML(t.nome)}</h4><div class="team-stats"><div><strong>${s.giocate}</strong><span>GIOCATE*</span></div><div><strong style="color:var(--green)">${s.v}</strong><span>VITTORIE</span></div>${t.disciplina==='Basket'?'':`<div><strong style="color:var(--yellow)">${s.n}</strong><span>PAREGGI</span></div>`}<div><strong style="color:var(--red)">${s.p}</strong><span>SCONFITTE</span></div></div>${teamStandingHTML(t)}<div class="team-next">${future?'PROSSIMA: '+escapeHTML(shortDate(future.data))+' · '+escapeHTML(isASL(future.casa)?future.ospite:future.casa):t.daIntegrare?(t.disciplina==='Pallavolo'?'◌ In attesa dei calendari ufficiali':'Calendario non ancora disponibile'):'Nessuna partita futura in elenco'}</div></article>`;}).join('')+'<div class="quiet-text" style="grid-column:1/-1">* Per “giocate” si intendono esclusivamente le gare con punteggio registrato.</div>';}
