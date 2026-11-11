@@ -54,10 +54,10 @@
       .featured-match p{margin:0;color:#becadc;font-size:12px}
       .featured-match .featured-match-label{color:#a7d3ff;font-weight:800}
 .match-day{margin:0 0 8px;color:#f4f6fb}
-.match-day-heading{width:100%;cursor:pointer;list-style:none;font-family:inherit;white-space:nowrap}
+.match-day-heading{width:100%;cursor:pointer;list-style:none;font-family:inherit;font-size:17px;font-weight:900;gap:6px;padding-inline:5px;white-space:nowrap}
 .match-day-heading::-webkit-details-marker{display:none}
 .match-day-lights{display:flex;gap:4px}
-.match-day-lights i{width:8px;height:8px;border-radius:50%;background:currentColor;color:#ff526a;box-shadow:0 0 6px currentColor;animation:match-day-led 3s steps(1,end) infinite}
+.match-day-lights i{width:10px;height:10px;border-radius:50%;background:currentColor;color:#ff526a;box-shadow:0 0 6px currentColor;animation:match-day-led 3s steps(1,end) infinite}
 .match-day-lights i:nth-child(2){color:#62adff;animation-delay:-1.5s}
 @keyframes match-day-led{0%{opacity:1}50%{opacity:.25}}
 @media(prefers-reduced-motion:reduce){.match-day-lights i{animation:none}}
@@ -68,7 +68,7 @@
 .match-day-details strong{font-size:13px}
 .match-day-meta{font-size:11px;color:#becadc}
 .match-day-demo{font-size:11px;color:#becadc;margin:7px 8px 0}
-@media(max-width:850px){.main-content > .match-day{margin:8px 14px 12px}}
+@media(max-width:850px){.main-content > .match-day{margin:8px 14px 12px}.match-day-heading{font-size:21px;gap:10px}.match-day-lights i{width:12px;height:12px}}
 </style>
 </head>
 <body>
