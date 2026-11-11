@@ -12,7 +12,12 @@ const football = [
   {id:'c5-serie-c-f', code:'F5', group:'A'},
 ];
 const dashboard = fs.readFileSync('Dashboard_Atletico_San_Lorenzo_2026-27.html', 'utf8');
-const fixtures = JSON.parse(dashboard.match(/^window\.ATLETICO_DATA = (.*);$/m)[1]).partite
+const data = JSON.parse(dashboard.match(/^window\.ATLETICO_DATA = (.*);$/m)[1]);
+for (const [id, link] of Object.entries(data.lndYouthSources ?? {})) {
+  const url = new URL(link);
+  football.push({id, code:url.searchParams.get('campionato'), group:url.searchParams.get('girone'), link});
+}
+const fixtures = data.partite
   .filter(game => [...competitions, ...football].some(competition => competition.id === game.squadra));
 const file = 'risultati.json';
 const results = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, 'utf8')) : {};
@@ -77,9 +82,10 @@ for (const {row, competition} of pages.flatMap(({html, competition}) => html.spl
   const points = scores;
   record(competition, iso, home, away, points);
 }
-function record(competition, iso, home, away, points) {
-  const candidates = fixtures.filter(game => game.squadra === competition.id && game.data === iso &&
-    team(game.casa) === team(home) && team(game.ospite) === team(away));
+function record(competition, iso, home, away, points, lndId) {
+  const candidates = fixtures.filter(game => game.squadra === competition.id &&
+    (game.lndId != null ? game.lndId === lndId && team(game.casa) === team(home) && team(game.ospite) === team(away) :
+      game.data === iso && team(game.casa) === team(home) && team(game.ospite) === team(away)));
   if (candidates.length !== 1) {
     console.warn('Gara da verificare:', iso, home, away);
     return;
@@ -108,7 +114,7 @@ function importLnd(page, competition) {
         ![game.home, game.away].includes('ATLETICO SAN LORENZO')) continue;
     const score = [game.homeGoals, game.awayGoals];
     if (score.every(value => Number.isInteger(value) && value >= 0)) {
-      record(competition, game.date, game.home, game.away, score);
+      record(competition, game.date, game.home, game.away, score, game.id);
     }
   }
 }
@@ -123,12 +129,16 @@ if (process.argv.length > 2) {
   const today = new Intl.DateTimeFormat('sv-SE', {timeZone:'Europe/Rome'}).format(new Date());
   for (const competition of football) {
     try {
-      const url = new URL('https://gare.lnd.it/');
-      url.search = new URLSearchParams({campionato:competition.code, cr:'08', girone:competition.group, stagione:'2026'});
+      const url = new URL(competition.link ?? 'https://gare.lnd.it/');
+      if (!competition.link) {
+        url.search = new URLSearchParams({campionato:competition.code, cr:'08', girone:competition.group, stagione:'2026'});
+      }
       const index = await loadLnd(url);
       importLnd(index, competition);
       for (const day of index.matchdays.filter(day => (day.startDate === '0001-01-01' ? day.endDate : day.startDate) <= today)) {
         if (index.currentMatchday?.number === day.number && index.currentMatchday?.leg === day.leg) continue;
+        if (competition.link && !fixtures.some(game => game.squadra === competition.id &&
+            Number(game.giornata) === day.number && game.turno === (day.leg === 'first' ? 'Andata' : 'Ritorno'))) continue;
         url.searchParams.set('giornata', day.number);
         url.searchParams.set('leg', day.leg);
         const page = await loadLnd(url);

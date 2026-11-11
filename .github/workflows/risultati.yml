@@ -21,6 +21,8 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - run: node aggiorna-risultati.mjs
       - name: Conserva i risultati validi
         if: (github.event_name == 'schedule' && vars.PUBBLICA_DASHBOARD == 'true') || inputs.pubblica
@@ -35,6 +37,8 @@ jobs:
           mkdir site
           cp Dashboard_Atletico_San_Lorenzo_2026-27.html site/index.html
           cp risultati.json site/
+          updated_at=$(git log -1 --format=%cI -- risultati.json)
+          sed -i "s|id=\"resultsUpdatedAt\" datetime=\"\"|id=\"resultsUpdatedAt\" datetime=\"$updated_at\"|" site/index.html
       - uses: actions/upload-pages-artifact@v3
         if: (github.event_name == 'schedule' && vars.PUBBLICA_DASHBOARD == 'true') || inputs.pubblica
         with:
