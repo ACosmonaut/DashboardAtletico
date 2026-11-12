@@ -1,0 +1,41 @@
+name: Verifica fonti risultati
+on:
+  push:
+    branches: [verifica-fonti-actions]
+permissions:
+  contents: read
+jobs:
+  verifica:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Verifica le risposte HTTP e i dati dei gironi
+        run: |
+          node --input-type=module <<'NODE'
+          const sources = [
+            ['Tuttocampo Seconda Categoria', 'https://www.tuttocampo.it/Lazio/SecondaCategoria/GironeE/Risultati'],
+            ['Tuttocampo Serie C femminile', 'https://www.tuttocampo.it/Lazio/FemminileCalcioa5/GironeASerieCFemminile/Risultati'],
+            ['Tuttocampo Under 15', 'https://www.tuttocampo.it/Lazio/FemminileCalcioa5/GironeBUnder15/Risultati'],
+            ['Tuttocampo Under 13', 'https://www.tuttocampo.it/Lazio/FemminileCalcioa5/GironeBUnder13/Risultati'],
+            ['Tuttocampo CSI Open', 'https://www.tuttocampo.it/Lazio/AmatoriCSI/GironeUnicoCalcioa5OpenFemminileRoma/Risultati'],
+            ['CSI Roma Open', 'https://live.centrosportivoitaliano.it/26/Calcio-a-5/Lazio/Roma/C36497/?j=NEU9REREJjRGPVBOUCY0Rz1HSkhNSyY0SD1GTEtJSkQmNEk9VHY0MTByIGgwdnAxJjRMPURERCY0Mj1l'],
+            ['Gare LND Under 15', 'https://gare.lnd.it/?campionato=47&cr=08&girone=B&stagione=2026&giornata=2&leg=first'],
+          ];
+          const results = await Promise.all(sources.map(async ([label, url]) => {
+            try {
+              const response = await fetch(url, {signal: AbortSignal.timeout(15000)});
+              const html = await response.text();
+              const title = html.match(/<title[^>]*>([^<]*)<\/title>/i)?.[1]?.trim().replace(/\s+/g, ' ');
+              const app = html.match(/<script data-page="app" type="application\/json">([\s\S]*?)<\/script>/);
+              const props = app ? JSON.parse(app[1]).props : undefined;
+              const csiCards = [...html.matchAll(/class="btn btn-gara"/g)].length;
+              const tables = [...html.matchAll(/<table\b/gi)].length;
+              const club = /atletico(?:\s|&nbsp;)+san(?:\s|&nbsp;)+lorenzo/i.test(html);
+              return {label, status:response.status, finalUrl:response.url, title, club, tables, csiCards,
+                lndMatches:props?.matches?.length, lndRound:props?.currentMatchday?.number, message:props?.message};
+            } catch(error) {
+              return {label, error:error.message};
+            }
+          }));
+          for(const result of results) console.log(JSON.stringify(result));
+          NODE
