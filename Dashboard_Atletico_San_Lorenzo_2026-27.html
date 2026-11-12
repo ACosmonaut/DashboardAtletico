@@ -254,12 +254,14 @@ function nextGames(games){return games.filter(g=>g.data>=isoToday()&&!hasScore(g
 function lastResults(games){return games.filter(hasScore).sort((a,b)=>-dateSort(a,b));}
 function displayScore(g){return hasScore(g)?`${g.puntiCasa} : ${g.puntiOspite}`:'—';}
 function officialScoreSource(source){return /^(?:LND|FIP|CSI)\b/i.test(String(source||'').trim());}
-function scoreHTML(game){
+function scoreHTML(game, showSource=true){
   if(!hasScore(game)) return '–';
   const source=String(game.fonte||'').trim();
   const label=source.split(' · ')[0]||'non indicata';
   const style=officialScoreSource(source)?'score-value':'score-value secondary';
-  return `<span class="${style}">${escapeHTML(displayScore(game))}</span><small class="score-source" title="${escapeHTML(source||label)}">Fonte: ${escapeHTML(label)}</small>`;
+  const value=`<span class="${style}">${escapeHTML(displayScore(game))}</span>`;
+  if(!showSource) return value;
+  return `${value}<small class="score-source" title="${escapeHTML(source||label)}">Fonte: ${escapeHTML(label)}</small>`;
 }
 function resultLabel(g){if(!hasScore(g))return '<span class="pill pending">DA AGGIORNARE</span>';const a=stats([g]);return a.v?'<span class="pill win">VITTORIA</span>':a.p?'<span class="pill lose">SCONFITTA</span>':a.n?'<span class="pill draw">PAREGGIO</span>':'<span class="pill neutral">RISULTATO</span>';}
 function showToast(message,kind){const toast=$('#toast');toast.textContent=message;toast.className='toast show'+(kind==='error'?' error':'');clearTimeout(showToast.timer);showToast.timer=setTimeout(()=>toast.className='toast',3600);}
@@ -318,7 +320,7 @@ const today=new Date(isoToday()+'T00:00:00');const plus7=new Date(today.getTime(
 renderTicker();renderUpcoming(games);renderResults(games);renderPerformance(games);renderCalendar(games);renderGroupStanding();renderTeams();renderCoverage();}
 function renderTicker(){
   const results=lastResults(allGames()).slice(0,8);
-  const items=results.map(g=>`<span>${escapeHTML(g.categoria)} · ${escapeHTML(g.casa)} <strong>${scoreHTML(g)}</strong> ${escapeHTML(g.ospite)}</span>`).join('');
+  const items=results.map(g=>`<span>${escapeHTML(g.categoria)} · ${escapeHTML(g.casa)} <strong>${scoreHTML(g, false)}</strong> ${escapeHTML(g.ospite)}</span>`).join('');
   $('#tickerResults').innerHTML=items
     ? `<div class="ticker-track"><div class="ticker-group">${items}</div><div class="ticker-group" aria-hidden="true">${items}</div></div>`
     : 'Nessun risultato registrato';
