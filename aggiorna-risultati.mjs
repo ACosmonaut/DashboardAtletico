@@ -192,7 +192,8 @@ for (const id of ambiguous) matched.delete(id);
 if (!matched.size) throw new Error('Nessun risultato abbinato: file precedente conservato');
 for (const [id, points] of matched) {
   const game = fixtures.find(item => item.id === id);
-  if (game.puntiCasa != null && (game.puntiCasa !== points[0] || game.puntiOspite !== points[1])) {
+  const officialBaseScore = /^(?:LND|FIP|CSI)\b/i.test(String(game.fonte ?? '').trim());
+  if (officialBaseScore && game.puntiCasa != null && (game.puntiCasa !== points[0] || game.puntiOspite !== points[1])) {
     console.warn('Punteggio discordante dal dato iniziale:', id);
     continue;
   }

@@ -57,7 +57,7 @@
 .match-day-heading{width:100%;cursor:pointer;list-style:none;font-family:inherit;font-size:18px;font-weight:900;gap:6px;padding-inline:5px;white-space:nowrap;color:#fff;background:linear-gradient(110deg,#391425,#132e61);border-color:#697dab;text-shadow:0 0 9px #d8e6ff55}
 .match-day-heading::-webkit-details-marker{display:none}
 .match-day-lights{display:flex;gap:4px;flex-shrink:0}
-.match-day-lights i{width:11px;height:11px;border-radius:50%;background:radial-gradient(circle at 38% 34%,#fff 0%,currentColor 38%,currentColor 68%,transparent 76%);color:#ff526a;box-shadow:0 0 9px currentColor;animation:match-day-led 3s steps(1,end) infinite}
+.match-day-lights i{width:11px;height:11px;border-radius:50%;background:currentColor;color:#ff526a;box-shadow:0 0 5px currentColor;animation:match-day-led 3s steps(1,end) infinite}
 .match-day-lights i:nth-child(2){color:#62adff;animation-delay:-1.5s}
 @keyframes match-day-led{0%{opacity:1}50%{opacity:.45}}
 @media(prefers-reduced-motion:reduce){.match-day-lights i{animation:none}}
@@ -70,6 +70,7 @@
 .match-day-demo{font-size:11px;color:#becadc;margin:7px 8px 0}
 @media(max-width:850px){.main-content > .match-day{margin:8px 14px 12px}.match-day-heading{font-size:22px;gap:10px}.match-day-lights i{width:14px;height:14px}}
 </style>
+<style>.score-value{color:#fff}.score-value.secondary{color:#ffda67}.score-source{margin-inline-start:.35em;color:#b9c8df;font:italic 500 10px/1.3 system-ui,sans-serif;letter-spacing:0}.score-tag .score-source{display:block;margin:2px 0 0}.result-row .score-tag{text-align:right}</style>
 </head>
 <body>
   <div class="app-shell">
@@ -233,11 +234,11 @@ let sharedScores = {};
 function withSharedScore(game){
   const score = sharedScores[game.id];
   const basket = matchTeam(game.squadra).disciplina === 'Basket';
-  if ((!basket && !['calcio-seconda','c5-serie-c-f','c5-u15-f','c5-csi-f'].includes(game.squadra) && !BASE.lndYouthSources?.[game.squadra]) || hasScore(game) || !Array.isArray(score) || score.length !== 2 ||
+  if ((!basket && !['calcio-seconda','c5-serie-c-f','c5-u15-f','c5-csi-f'].includes(game.squadra) && !BASE.lndYouthSources?.[game.squadra]) || (hasScore(game) && officialScoreSource(game.fonte)) || !Array.isArray(score) || score.length !== 2 ||
       !score.every(value => Number.isInteger(value) && value >= 0 && value <= 999) || (basket && score[0] === score[1])) return game;
   return {...game,puntiCasa:score[0],puntiOspite:score[1],fonte:basket?'FIP':game.squadra==='c5-csi-f'?'CSI':'LND',stato:'Conclusa'};
 }
-function allGames(){return [...BASE.partite.filter(g=>!state.rimossi.includes(g.id)).map(g=>state.modifiche[g.id]||withSharedScore(g)),...state.aggiunte].map(normalizeFixture).filter(valid).sort(dateSort);}
+function allGames(){return [...BASE.partite.filter(g=>!state.rimossi.includes(g.id)).map(g=>withSharedScore(state.modifiche[g.id]||g)),...state.aggiunte].map(normalizeFixture).filter(valid).sort(dateSort);}
 let view = 'panoramica', calendarTab='tutte', page=1, currentTeam='', currentSport='', searchText='';
 const PAGE_SIZE=16;
 const titles={panoramica:['La nostra stagione','Numeri, gare e risultati di tutte le squadre rossoblù.'],calendario:['Calendario partite','Tutte le gare, gli orari e i risultati della stagione 2026/27.'],squadre:['Le nostre squadre','Prime squadre e settore giovanile: ogni categoria ha la sua storia.'],gestione:['Gestione dati','Aggiorna i risultati, aggiungi incontri e salva i tuoi dati.']};
@@ -252,6 +253,14 @@ function stats(games){const a={v:0,p:0,n:0,giocate:0};games.filter(hasScore).for
 function nextGames(games){return games.filter(g=>g.data>=isoToday()&&!hasScore(g)).sort(dateSort);}
 function lastResults(games){return games.filter(hasScore).sort((a,b)=>-dateSort(a,b));}
 function displayScore(g){return hasScore(g)?`${g.puntiCasa} : ${g.puntiOspite}`:'—';}
+function officialScoreSource(source){return /^(?:LND|FIP|CSI)\b/i.test(String(source||'').trim());}
+function scoreHTML(game){
+  if(!hasScore(game)) return '–';
+  const source=String(game.fonte||'').trim();
+  const label=source.split(' · ')[0]||'non indicata';
+  const style=officialScoreSource(source)?'score-value':'score-value secondary';
+  return `<span class="${style}">${escapeHTML(displayScore(game))}</span><small class="score-source" title="${escapeHTML(source||label)}">Fonte: ${escapeHTML(label)}</small>`;
+}
 function resultLabel(g){if(!hasScore(g))return '<span class="pill pending">DA AGGIORNARE</span>';const a=stats([g]);return a.v?'<span class="pill win">VITTORIA</span>':a.p?'<span class="pill lose">SCONFITTA</span>':a.n?'<span class="pill draw">PAREGGIO</span>':'<span class="pill neutral">RISULTATO</span>';}
 function showToast(message,kind){const toast=$('#toast');toast.textContent=message;toast.className='toast show'+(kind==='error'?' error':'');clearTimeout(showToast.timer);showToast.timer=setTimeout(()=>toast.className='toast',3600);}
 function switchView(to){if(!titles[to])return;view=to;$('#overviewMatches').hidden=to!=='panoramica';$$('.nav-btn').forEach(b=>b.classList.toggle('active',b.dataset.view===to));$$('.view').forEach(el=>el.classList.toggle('active',el.id==='view-'+to));$('#viewTitle').innerHTML=escapeHTML(titles[to][0])+'<span class="accent">.</span>';$('#viewSubtitle').textContent=titles[to][1];$('#currentPage').textContent=to.toUpperCase();$('#sidebar').classList.remove('open');if(location.hash!=='#'+to)history.replaceState(null,'','#'+to);render();window.scrollTo({top:0,behavior:'instant'});}
@@ -271,11 +280,11 @@ const matchDayTime = new Intl.DateTimeFormat('it-IT', {
         const game = next || pending.find(game => game.ora) || pending[0] || games.at(-1);
         const sport = matchTeam(game.squadra).disciplina;
         const icon = matchDayIcons[sport] || '';
-        const score = hasScore(game) ? displayScore(game) : '–';
+        const score = scoreHTML(game);
         const venue = locationType(game) === 'home' ? 'In casa' : 'In trasferta';
         const status = hasScore(game) ? 'Risultato di oggi' : next ? 'Prossima partita di oggi' : 'Partita di oggi';
         $('#featuredMatchLabel').textContent = status + ' · ' + (game.ora || 'Ora da confermare');
-        $('#featuredMatchTitle').textContent = [icon, game.casa, score, game.ospite].filter(Boolean).join(' ');
+        $('#featuredMatchTitle').innerHTML = [icon, escapeHTML(game.casa), score, escapeHTML(game.ospite)].filter(Boolean).join(' ');
         $('#featuredMatchDetails').textContent = [sport, game.categoria, game.impianto || 'Campo da confermare', venue].join(' · ');
         const others = $('#featuredMatchOthers');
         const count = games.length - 1;
@@ -290,7 +299,7 @@ function renderMatchDay(){
   $('#matchDay').hidden = games.length === 0;
   $('#matchDayList').innerHTML = games.map(game => {
     const sport = matchTeam(game.squadra).disciplina;
-    const score = hasScore(game) ? displayScore(game) : '–';
+    const score = scoreHTML(game);
     const time = game.ora || '—';
     const details = [sport, game.categoria, game.impianto || 'Campo da confermare'].filter(Boolean);
     return `<li class="match-day-row">
@@ -309,14 +318,14 @@ const today=new Date(isoToday()+'T00:00:00');const plus7=new Date(today.getTime(
 renderTicker();renderUpcoming(games);renderResults(games);renderPerformance(games);renderCalendar(games);renderGroupStanding();renderTeams();renderCoverage();}
 function renderTicker(){
   const results=lastResults(allGames()).slice(0,8);
-  const items=results.map(g=>`<span>${escapeHTML(g.categoria)} · ${escapeHTML(g.casa)} <strong>${escapeHTML(displayScore(g))}</strong> ${escapeHTML(g.ospite)}</span>`).join('');
+  const items=results.map(g=>`<span>${escapeHTML(g.categoria)} · ${escapeHTML(g.casa)} <strong>${scoreHTML(g)}</strong> ${escapeHTML(g.ospite)}</span>`).join('');
   $('#tickerResults').innerHTML=items
     ? `<div class="ticker-track"><div class="ticker-group">${items}</div><div class="ticker-group" aria-hidden="true">${items}</div></div>`
     : 'Nessun risultato registrato';
   $('#tickerToggle').hidden=!items;
 }
 function renderUpcoming(games){const next=nextGames(games).slice(0,5);$('#upcomingList').innerHTML=next.length?next.map(g=>{const [y,m,d]=(g.data||'').split('-');const venue=g.impianto||'Impianto da confermare';return `<div class="match-row"><div class="match-date"><b>${escapeHTML(d)}</b><small>${escapeHTML(new Date(Number(y),Number(m)-1,Number(d)).toLocaleDateString('it-IT',{month:'short'}))}</small></div><div class="match-main"><div class="match-category">${escapeHTML(matchTeam(g.squadra).disciplina)} · ${escapeHTML(g.categoria)}</div><div class="match-names">${escapeHTML(g.casa)} <span class="team-red">vs</span> ${escapeHTML(g.ospite)}</div><div class="match-venue">${escapeHTML(venue)}</div></div><div class="match-side"><span class="match-time">${escapeHTML(g.ora||'—:—')}</span><span class="pill ${locationType(g)}">${locationType(g)==='home'?'CASA':locationType(g)==='away'?'TRASFERTA':'GARA'}</span></div></div>`;}).join(''):'<div class="empty-state"><span class="empty-symbol">▦</span><strong>Nessuna gara futura</strong><p>Prova a modificare i filtri o carica nuovi calendari.</p></div>';}
-function renderResults(games){const results=lastResults(games).slice(0,5);$('#resultsCount').textContent=games.filter(hasScore).length+' risultati';$('#recentResults').innerHTML=results.length?results.map(g=>`<div class="result-row"><div class="match-main"><div class="match-category">${escapeHTML(shortDate(g.data))} · ${escapeHTML(g.categoria)}</div><div class="match-names">${escapeHTML(g.casa)} <span class="team-red">–</span> ${escapeHTML(g.ospite)}</div><div style="margin-top:5px">${resultLabel(g)}</div></div><div class="score-tag">${displayScore(g)}</div></div>`).join(''):'<div class="empty-state"><span class="empty-symbol">◎</span><strong>Nessun risultato inserito</strong><p>Apri una partita dal calendario e inserisci i due punteggi: compariranno qui e nelle statistiche.</p><button class="button button-outline" data-goto="calendario">Apri calendario</button></div>';}
+function renderResults(games){const results=lastResults(games).slice(0,5);$('#resultsCount').textContent=games.filter(hasScore).length+' risultati';$('#recentResults').innerHTML=results.length?results.map(g=>`<div class="result-row"><div class="match-main"><div class="match-category">${escapeHTML(shortDate(g.data))} · ${escapeHTML(g.categoria)}</div><div class="match-names">${escapeHTML(g.casa)} <span class="team-red">–</span> ${escapeHTML(g.ospite)}</div><div style="margin-top:5px">${resultLabel(g)}</div></div><div class="score-tag">${scoreHTML(g)}</div></div>`).join(''):'<div class="empty-state"><span class="empty-symbol">◎</span><strong>Nessun risultato inserito</strong><p>Apri una partita dal calendario e inserisci i due punteggi: compariranno qui e nelle statistiche.</p><button class="button button-outline" data-goto="calendario">Apri calendario</button></div>';}
 function renderPerformance(games){
 const total=stats(games);
 const teams=BASE.squadre.filter(t=>(!currentSport||t.disciplina===currentSport)&&(!currentTeam||t.id===currentTeam)&&(!searchText||games.some(g=>g.squadra===t.id)));
@@ -326,7 +335,7 @@ $('#performanceChart').innerHTML=`<div class="stats-table-wrap"><table class="st
 }
 function filteredCalendar(games){if(calendarTab==='prossime')return games.filter(g=>g.data>=isoToday()&&!hasScore(g));if(calendarTab==='risultati')return games.filter(hasScore);if(calendarTab==='senza-risultato')return games.filter(g=>g.data<isoToday()&&!hasScore(g));return games;}
 function renderCalendar(games){const calendar=filteredCalendar(games);const count=calendar.length;const pages=Math.max(1,Math.ceil(count/PAGE_SIZE));page=Math.min(Math.max(1,page),pages);const pageItems=calendar.slice((page-1)*PAGE_SIZE,page*PAGE_SIZE);$('#calendarCount').textContent=`${count} gare`;
-$('#calendarBody').innerHTML=pageItems.length?pageItems.map(g=>`<tr><td>${escapeHTML(datestr(g.data))}<span>${escapeHTML(g.ora||'Ora da confermare')}</span></td><td><span class="table-category">${escapeHTML(g.categoria)}</span><span class="table-sub">${escapeHTML(matchTeam(g.squadra).disciplina)}${g.giornata?' · G. '+escapeHTML(g.giornata):''}${g.turno?' · '+escapeHTML(g.turno):''}</span><span class="table-sub">${escapeHTML(g.fase||'REGULAR SEASON')}</span></td><td><strong${isASL(g.casa)?' class="team-red"':''}>${escapeHTML(g.casa)}</strong><span class="table-sub">vs</span><strong${isASL(g.ospite)?' class="team-red"':''}>${escapeHTML(g.ospite)}</strong></td><td><div class="td-muted" title="${escapeHTML(g.impianto||'')}">${escapeHTML(g.impianto||'Da confermare')}</div><div class="table-sub" title="${escapeHTML(g.fonte||'Fonte non indicata')}">${escapeHTML(g.fonte||'Fonte non indicata')}</div></td><td>${hasScore(g)?`<strong class="score-tag">${escapeHTML(displayScore(g))}</strong><div style="margin-top:5px">${resultLabel(g)}</div>`:g.data<isoToday()?'<span class="pill pending">DA AGGIORNARE</span>':'<span class="pill neutral">IN PROGRAMMA</span>'}</td><td><button class="edit-btn" data-edit="${escapeHTML(g.id)}">Modifica →</button></td></tr>`).join(''):'<tr><td colspan="6" class="table-empty">Nessuna partita corrisponde ai filtri selezionati.</td></tr>';
+$('#calendarBody').innerHTML=pageItems.length?pageItems.map(g=>`<tr><td>${escapeHTML(datestr(g.data))}<span>${escapeHTML(g.ora||'Ora da confermare')}</span></td><td><span class="table-category">${escapeHTML(g.categoria)}</span><span class="table-sub">${escapeHTML(matchTeam(g.squadra).disciplina)}${g.giornata?' · G. '+escapeHTML(g.giornata):''}${g.turno?' · '+escapeHTML(g.turno):''}</span><span class="table-sub">${escapeHTML(g.fase||'REGULAR SEASON')}</span></td><td><strong${isASL(g.casa)?' class="team-red"':''}>${escapeHTML(g.casa)}</strong><span class="table-sub">vs</span><strong${isASL(g.ospite)?' class="team-red"':''}>${escapeHTML(g.ospite)}</strong></td><td><div class="td-muted" title="${escapeHTML(g.impianto||'')}">${escapeHTML(g.impianto||'Da confermare')}</div><div class="table-sub" title="${escapeHTML(g.fonte||'Fonte non indicata')}">${escapeHTML(g.fonte||'Fonte non indicata')}</div></td><td>${hasScore(g)?`<strong class="score-tag">${scoreHTML(g)}</strong><div style="margin-top:5px">${resultLabel(g)}</div>`:g.data<isoToday()?'<span class="pill pending">DA AGGIORNARE</span>':'<span class="pill neutral">IN PROGRAMMA</span>'}</td><td><button class="edit-btn" data-edit="${escapeHTML(g.id)}">Modifica →</button></td></tr>`).join(''):'<tr><td colspan="6" class="table-empty">Nessuna partita corrisponde ai filtri selezionati.</td></tr>';
 $('#paginationLabel').textContent=count?`Mostrate ${((page-1)*PAGE_SIZE)+1}–${Math.min(page*PAGE_SIZE,count)} su ${count}`:'Nessuna gara';$('#pageNumber').textContent=`${page} / ${pages}`;$('#prevPage').disabled=page<=1;$('#nextPage').disabled=page>=pages;$$('.tab-btn').forEach(b=>b.classList.toggle('active',b.dataset.tab===calendarTab));}
 
 let teamStandings={...(BASE.classifiche||{})};try{teamStandings={...teamStandings,...JSON.parse(localStorage.getItem('atletico-standings-v1')||'{}')}}catch(e){}
