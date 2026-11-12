@@ -10,7 +10,12 @@ const competitions = [
 const football = [
   {id:'calcio-seconda', code:'2C', group:'E'},
   {id:'c5-serie-c-f', code:'F5', group:'A'},
+  {id:'c5-u15-f', code:'47', group:'B'},
 ];
+const csi = {
+  id:'c5-csi-f',
+  link:'https://live.centrosportivoitaliano.it/26/Calcio-a-5/Lazio/Roma/C36497/?j=NEU9REREJjRGPVBOUCY0Rz1HSkhNSyY0SD1GTEtJSkQmNEk9VHY0MTByIGgwdnAxJjRMPURERCY0Mj1l'
+};
 const dashboard = fs.readFileSync('Dashboard_Atletico_San_Lorenzo_2026-27.html', 'utf8');
 const data = JSON.parse(dashboard.match(/^window\.ATLETICO_DATA = (.*);$/m)[1]);
 for (const [id, link] of Object.entries(data.lndYouthSources ?? {})) {
@@ -18,7 +23,7 @@ for (const [id, link] of Object.entries(data.lndYouthSources ?? {})) {
   football.push({id, code:url.searchParams.get('campionato'), group:url.searchParams.get('girone'), link});
 }
 const fixtures = data.partite
-  .filter(game => [...competitions, ...football].some(competition => competition.id === game.squadra));
+  .filter(game => [...competitions, ...football, csi].some(competition => competition.id === game.squadra));
 const file = 'risultati.json';
 const results = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, 'utf8')) : {};
 const aliases = new Map([
@@ -28,6 +33,10 @@ const aliases = new Map([
   ['luiss roma', 'luiss'],
   ['bull basket latina', 'bull basket'],
   ['gs esquilino roma', 'esquilino basketball'],
+  ['oxygene a s d', 'oxygene asd'],
+  ['a p d ordine ingegnari di roma', 'ordine ingegneri di roma'],
+  ['asd progetto futsal calcio a 5', 'progetto futsal calcio a 5'],
+  ['united s lorenzo castelf', 'united s lorenzo castelforte'],
 ]);
 function team(value) {
   const normalized = value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
@@ -36,7 +45,7 @@ function team(value) {
 
 const months = 'gennaio febbraio marzo aprile maggio giugno luglio agosto settembre ottobre novembre dicembre'.split(' ');
 async function readPages() {
-  if (process.argv.length > 2) return process.argv.slice(2).filter(path => !path.startsWith("--lnd=")).map(path => {
+  if (process.argv.length > 2) return process.argv.slice(2).filter(path => !path.startsWith("--lnd=") && !path.startsWith("--csi=")).map(path => {
     const html = fs.readFileSync(path, 'utf8');
     const group = html.match(/codice_girone=(\d+)&codice_ar=/)?.[1];
     const competition = competitions.find(item => item.group === group);
@@ -118,7 +127,28 @@ function importLnd(page, competition) {
     }
   }
 }
+const today = new Intl.DateTimeFormat('sv-SE', {timeZone:'Europe/Rome'}).format(new Date());
+
+function importCsi(html) {
+  if (!html.includes('/26/Calcio-a-5/Lazio/Roma/C36497/') || !html.includes('Atletico San Lorenzo')) {
+    throw new Error('Girone CSI inatteso');
+  }
+  for (const [, card] of html.matchAll(/<a\b[^>]*class="btn btn-gara"[^>]*>([\s\S]*?)<\/a>/g)) {
+    const names = [...card.matchAll(/class="nome-squadra">\s*([^<]+)</g)].map(match => match[1].trim());
+    if (names.length !== 2 || !names.some(name => team(name) === 'atletico san lorenzo')) continue;
+    const date = card.match(/<span>\s*(\d{2})\/(\d{2})\/(26|27)\s*<\/span>/);
+    const points = [...card.matchAll(/<span class=['"]text-secondary-(?:400|700)['"]>\s*(?:<b>\s*)?(\d{1,3})\s*(?:<\/b>\s*)?<\/span>/g)]
+      .map(match => Number(match[1]));
+    if (!date || points.length !== 2) continue;
+    const iso = '20' + date[3] + '-' + date[2] + '-' + date[1];
+    if (iso <= today) record(csi, iso, names[0], names[1], points);
+  }
+}
+
 if (process.argv.length > 2) {
+  for (const arg of process.argv.slice(2).filter(arg => arg.startsWith('--csi='))) {
+    importCsi(fs.readFileSync(arg.slice(6), 'utf8'));
+  }
   for (const arg of process.argv.slice(2).filter(arg => arg.startsWith('--lnd='))) {
     const page = lndPage(fs.readFileSync(arg.slice(6), 'utf8'));
     const competition = football.find(item => item.code === page.championship?.code && item.group === page.group?.code);
@@ -126,7 +156,13 @@ if (process.argv.length > 2) {
     importLnd(page, competition);
   }
 } else {
-  const today = new Intl.DateTimeFormat('sv-SE', {timeZone:'Europe/Rome'}).format(new Date());
+  try {
+    const response = await fetch(csi.link, {signal: AbortSignal.timeout(15000)});
+    if (!response.ok) throw new Error('CSI HTTP ' + response.status);
+    importCsi(await response.text());
+  } catch (error) {
+    console.warn(csi.id + ': ' + error.message + '. Conservati i punteggi precedenti.');
+  }
   for (const competition of football) {
     try {
       const url = new URL(competition.link ?? 'https://gare.lnd.it/');
