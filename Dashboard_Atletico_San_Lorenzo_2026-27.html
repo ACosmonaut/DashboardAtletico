@@ -54,12 +54,12 @@
       .featured-match p{margin:0;color:#becadc;font-size:12px}
       .featured-match .featured-match-label{color:#a7d3ff;font-weight:800}
 .match-day{margin:0 0 8px;color:#f4f6fb}
-.match-day-heading{width:100%;cursor:pointer;list-style:none;font-family:inherit;font-size:17px;font-weight:900;gap:6px;padding-inline:5px;white-space:nowrap}
+.match-day-heading{width:100%;cursor:pointer;list-style:none;font-family:inherit;font-size:18px;font-weight:900;gap:6px;padding-inline:5px;white-space:nowrap;color:#fff;background:linear-gradient(110deg,#391425,#132e61);border-color:#697dab;text-shadow:0 0 9px #d8e6ff55}
 .match-day-heading::-webkit-details-marker{display:none}
-.match-day-lights{display:flex;gap:4px}
-.match-day-lights i{width:10px;height:10px;border-radius:50%;background:currentColor;color:#ff526a;box-shadow:0 0 6px currentColor;animation:match-day-led 3s steps(1,end) infinite}
+.match-day-lights{display:flex;gap:4px;flex-shrink:0}
+.match-day-lights i{width:11px;height:11px;border-radius:50%;background:radial-gradient(circle at 38% 34%,#fff 0%,currentColor 38%,currentColor 68%,transparent 76%);color:#ff526a;box-shadow:0 0 9px currentColor;animation:match-day-led 3s steps(1,end) infinite}
 .match-day-lights i:nth-child(2){color:#62adff;animation-delay:-1.5s}
-@keyframes match-day-led{0%{opacity:1}50%{opacity:.25}}
+@keyframes match-day-led{0%{opacity:1}50%{opacity:.45}}
 @media(prefers-reduced-motion:reduce){.match-day-lights i{animation:none}}
 .match-day-list{list-style:none;margin:0;padding:4px 8px 0}
 .match-day-row{display:grid;grid-template-columns:3.3em minmax(0,1fr);align-items:start;gap:6px;padding:8px 0;border-bottom:1px solid #354055}
@@ -68,7 +68,7 @@
 .match-day-details strong{font-size:13px}
 .match-day-meta{font-size:11px;color:#becadc}
 .match-day-demo{font-size:11px;color:#becadc;margin:7px 8px 0}
-@media(max-width:850px){.main-content > .match-day{margin:8px 14px 12px}.match-day-heading{font-size:21px;gap:10px}.match-day-lights i{width:12px;height:12px}}
+@media(max-width:850px){.main-content > .match-day{margin:8px 14px 12px}.match-day-heading{font-size:22px;gap:10px}.match-day-lights i{width:14px;height:14px}}
 </style>
 </head>
 <body>
