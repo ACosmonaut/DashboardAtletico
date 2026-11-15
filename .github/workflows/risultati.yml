@@ -1,5 +1,10 @@
 name: Risultati e pubblicazione
 on:
+  push:
+    branches: [main]
+    paths:
+      - Dashboard_Atletico_San_Lorenzo_2026-27.html
+      - .github/workflows/risultati.yml
   workflow_dispatch:
     inputs:
       pubblica:
@@ -7,7 +12,7 @@ on:
         type: boolean
         default: false
   schedule:
-    - cron: '23 7,13,20 * * *'
+    - cron: '23 * * * *'
 
 concurrency:
   group: dashboard-risultati
@@ -24,6 +29,7 @@ jobs:
         with:
           fetch-depth: 0
       - run: node aggiorna-risultati.mjs
+        if: github.event_name != 'push'
       - name: Conserva i risultati validi
         if: (github.event_name == 'schedule' && vars.PUBBLICA_DASHBOARD == 'true') || inputs.pubblica
         run: |
@@ -32,19 +38,19 @@ jobs:
           git -c user.name=github-actions -c user.email=41898282+github-actions[bot]@users.noreply.github.com commit -m "Aggiorna risultati dei campionati"
           git push
       - name: Prepara il sito
-        if: (github.event_name == 'schedule' && vars.PUBBLICA_DASHBOARD == 'true') || inputs.pubblica
+        if: github.event_name == 'push' || (github.event_name == 'schedule' && vars.PUBBLICA_DASHBOARD == 'true') || inputs.pubblica
         run: |
           mkdir site
           cp Dashboard_Atletico_San_Lorenzo_2026-27.html site/index.html
-          cp risultati.json site/
           updated_at=$(git log -1 --format=%cI -- risultati.json)
-          sed -i "s|id=\"resultsUpdatedAt\" datetime=\"\"|id=\"resultsUpdatedAt\" datetime=\"$updated_at\"|" site/index.html
+          node -e 'const fs = require("node:fs"); const scores = JSON.parse(fs.readFileSync("risultati.json", "utf8")); fs.writeFileSync("site/risultati.json", JSON.stringify({ ...scores, _updatedAt: process.argv[1] }));' "$updated_at"
+          sed -i "s|\(id=\"resultsUpdatedAt\" datetime=\"\)[^\"]*|\1$updated_at|" site/index.html
       - uses: actions/upload-pages-artifact@v3
-        if: (github.event_name == 'schedule' && vars.PUBBLICA_DASHBOARD == 'true') || inputs.pubblica
+        if: github.event_name == 'push' || (github.event_name == 'schedule' && vars.PUBBLICA_DASHBOARD == 'true') || inputs.pubblica
         with:
           path: site
   pubblicazione:
-    if: (github.event_name == 'schedule' && vars.PUBBLICA_DASHBOARD == 'true') || inputs.pubblica
+    if: github.event_name == 'push' || (github.event_name == 'schedule' && vars.PUBBLICA_DASHBOARD == 'true') || inputs.pubblica
     needs: risultati
     runs-on: ubuntu-latest
     permissions:
