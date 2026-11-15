@@ -27,6 +27,7 @@ const fixtures = data.partite
 const file = 'risultati.json';
 const results = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, 'utf8')) : {};
 const aliases = new Map([
+  ['agrimoderna jungle team palest', 'agrimoderna jungle team palestrina'],
   ['liberi nantes a s d', 'liberi nantes'],
   ['olimpus tiburtina roma', 'olimpus tiburtina'],
   ['asd fc truppian', 'fc truppian'],
