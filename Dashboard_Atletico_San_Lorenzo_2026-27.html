@@ -3,6 +3,20 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#081425">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Atletico">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="apple-touch-icon" sizes="180x180" href="./atletico-180.png">
+  <script>
+    if (location.protocol === 'https:' && 'serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js').catch(error => {
+          console.warn('Modalità offline:', error.message);
+        });
+      });
+    }
+  </script>
   <meta name="theme-color" content="#09162b">
   <meta name="description" content="Dashboard sportiva interna ASD Atletico San Lorenzo: calendari, risultati e andamento squadre.">
   <title>Atletico Dashboard 1.1 · Stagione 2026/27</title>

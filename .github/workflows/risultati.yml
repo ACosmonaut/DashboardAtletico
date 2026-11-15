@@ -5,6 +5,7 @@ on:
     paths:
       - Dashboard_Atletico_San_Lorenzo_2026-27.html
       - .github/workflows/risultati.yml
+      - 'pwa/**'
   workflow_dispatch:
     inputs:
       pubblica:
@@ -41,6 +42,7 @@ jobs:
         if: github.event_name == 'push' || (github.event_name == 'schedule' && vars.PUBBLICA_DASHBOARD == 'true') || inputs.pubblica
         run: |
           mkdir site
+          cp pwa/* site/
           cp Dashboard_Atletico_San_Lorenzo_2026-27.html site/index.html
           updated_at=$(git log -1 --format=%cI -- risultati.json)
           node -e 'const fs = require("node:fs"); const scores = JSON.parse(fs.readFileSync("risultati.json", "utf8")); fs.writeFileSync("site/risultati.json", JSON.stringify({ ...scores, _updatedAt: process.argv[1] }));' "$updated_at"
