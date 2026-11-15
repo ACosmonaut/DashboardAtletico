@@ -1,8 +1,8 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="it.atleticosanlorenzo.anteprima">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="it.atleticosanlorenzo.anteprima.v11" android:versionCode="11" android:versionName="1.1">
   <uses-sdk android:minSdkVersion="23" android:targetSdkVersion="32" />
   <uses-permission android:name="android.permission.INTERNET" />
-  <application android:label="Atletico · Anteprima" android:usesCleartextTraffic="false">
-    <activity android:name=".PreviewActivity" android:exported="true">
+  <application android:label="Atletico 1.1" android:usesCleartextTraffic="false">
+    <activity android:name="it.atleticosanlorenzo.anteprima.PreviewActivity" android:exported="true">
       <intent-filter>
         <action android:name="android.intent.action.MAIN" />
         <category android:name="android.intent.category.LAUNCHER" />

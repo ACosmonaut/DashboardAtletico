@@ -12,5 +12,5 @@ jobs:
       - run: bash android/build.sh
       - uses: actions/upload-artifact@v4
         with:
-          name: Atletico-anteprima
-          path: android/Atletico-anteprima.apk
+          name: Atletico-1.1
+          path: android/Atletico-1.1.apk
