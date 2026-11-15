@@ -12,6 +12,7 @@ const football = [
   {id:'c5-serie-c-f', code:'F5', group:'A'},
   {id:'c5-u15-f', code:'47', group:'B'},
 ];
+const calcio8 = {id:'c8-serie-b', endpoint:'https://www.legacalcioa8.it/system/include/ajax/public/league.php'};
 const csi = {
   id:'c5-csi-f',
   link:'https://live.centrosportivoitaliano.it/26/Calcio-a-5/Lazio/Roma/C36497/?j=NEU9REREJjRGPVBOUCY0Rz1HSkhNSyY0SD1GTEtJSkQmNEk9VHY0MTByIGgwdnAxJjRMPURERCY0Mj1l'
@@ -23,7 +24,7 @@ for (const [id, link] of Object.entries(data.lndYouthSources ?? {})) {
   football.push({id, code:url.searchParams.get('campionato'), group:url.searchParams.get('girone'), link});
 }
 const fixtures = data.partite
-  .filter(game => [...competitions, ...football, csi].some(competition => competition.id === game.squadra));
+  .filter(game => [...competitions, ...football, csi, calcio8].some(competition => competition.id === game.squadra));
 const file = 'risultati.json';
 const results = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, 'utf8')) : {};
 const aliases = new Map([
@@ -146,6 +147,28 @@ function importCsi(html) {
   }
 }
 
+function importCalcio8(html, game) {
+  const matchId = game.id.slice('lega-c8-'.length);
+  const row = html.split('<div class="match-element">').slice(1).find(item=>item.includes('/match/'+matchId+'/'));
+  if (!row) return;
+  const points = [...row.matchAll(/class=['"]score['"]>\s*(\d{1,3})\s*</g)].map(match=>Number(match[1]));
+  if (points.length===2) matched.set(game.id,points);
+}
+
+async function updateCalcio8() {
+  const games = fixtures.filter(game=>game.squadra===calcio8.id && game.data<=today);
+  for (const game of games) {
+    const response = await fetch(calcio8.endpoint,{
+      method:'POST', body:new URLSearchParams({op:22,tid:124,round:1056,match_day:game.giornata}),
+      signal:AbortSignal.timeout(12000)
+    });
+    if (!response.ok) throw new Error('Lega Calcio a 8 HTTP '+response.status);
+    const {html} = await response.json();
+    if (typeof html !== 'string') throw new Error('Calendario Lega Calcio a 8 assente');
+    importCalcio8(html,game);
+  }
+}
+
 if (process.argv.length > 2) {
   for (const arg of process.argv.slice(2).filter(arg => arg.startsWith('--csi='))) {
     importCsi(fs.readFileSync(arg.slice(6), 'utf8'));
@@ -157,6 +180,11 @@ if (process.argv.length > 2) {
     importLnd(page, competition);
   }
 } else {
+  try {
+    await updateCalcio8();
+  } catch (error) {
+    console.warn(calcio8.id + ': ' + error.message + '. Conservati i punteggi precedenti.');
+  }
   try {
     const response = await fetch(csi.link, {signal: AbortSignal.timeout(15000)});
     if (!response.ok) throw new Error('CSI HTTP ' + response.status);
