@@ -131,6 +131,40 @@ function importLnd(page, competition) {
 }
 const today = new Intl.DateTimeFormat('sv-SE', {timeZone:'Europe/Rome'}).format(new Date());
 
+async function updateFromStadiro() {
+  const pending = fixtures.filter(game => game.squadra === 'calcio-seconda' &&
+    game.data <= today && game.puntiCasa == null && !Object.hasOwn(results, game.id) &&
+    !matched.has(game.id));
+  if (!pending.length) return;
+
+  const url = 'https://stadiro.com/leagues/italy/seconda-categoria-lazio/results/';
+  const response = await fetch(url, {signal: AbortSignal.timeout(15000)});
+  if (!response.ok) throw new Error('HTTP ' + response.status);
+  const html = await response.text();
+  const englishMonths = 'Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec'.split(' ');
+  const normalizeName = name => team(name)
+    .replace(/^(?:pol )?(?:com|comunale) monteflavio$/, 'comunale monteflavio');
+  for (const [, item] of html.matchAll(/<li\b[^>]*>([\s\S]*?)<\/li>/gi)) {
+    const row = item.replace(/<[^>]*>/g, ' ').replace(/&nbsp;|&#160;/gi, ' ')
+      .replace(/&ndash;|&#8211;/gi, '–').replace(/&middot;|&#183;/gi, '·')
+      .replace(/\s+/g, ' ').trim();
+    const score = row.match(/^(.+?)\s+(\d{1,2})\s*[–-]\s*(\d{1,2})\s+(.+?)\s*·\s*(\d{1,2}) ([A-Z][a-z]{2}) (\d{4})$/);
+    if (!score) continue;
+    const [, home, homeGoals, awayGoals, away, day, month, year] = score;
+    const monthNumber = englishMonths.indexOf(month) + 1;
+    if (!monthNumber) continue;
+    const date = year + '-' + String(monthNumber).padStart(2, '0') + '-' + day.padStart(2, '0');
+    const games = pending.filter(game => game.data === date &&
+      normalizeName(game.casa) === normalizeName(home) &&
+      normalizeName(game.ospite) === normalizeName(away));
+    if (games.length !== 1) continue;
+    const [{id}] = games;
+    const points = [Number(homeGoals), Number(awayGoals)];
+    if (matched.has(id) && String(matched.get(id)) !== String(points)) ambiguous.add(id);
+    matched.set(id, points);
+  }
+}
+
 function importCsi(html) {
   if (!html.includes('/26/Calcio-a-5/Lazio/Roma/C36497/') || !html.includes('Atletico San Lorenzo')) {
     throw new Error('Girone CSI inatteso');
@@ -215,6 +249,11 @@ if (process.argv.length > 2) {
     } catch (error) {
       console.warn(competition.id + ': ' + error.message + '. Conservati i punteggi precedenti.');
     }
+  }
+  try {
+    await updateFromStadiro();
+  } catch (error) {
+    console.warn('Stadiro: ' + error.message);
   }
 }
 for (const id of ambiguous) matched.delete(id);
